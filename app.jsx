@@ -106,8 +106,9 @@ function App() {
       fetch('ubu_data_light.json').then(res => res.json()).catch(() => []),
       fetch('prelinger_data_light.json').then(res => res.json()).catch(() => []),
       fetch('vhsinstructionals_data_light.json').then(res => res.json()).catch(() => []),
+      fetch('rarefilmm_data_light.json').then(res => res.json()).catch(() => []),
       fetch('hidden_links.json').then(res => res.json()).catch(() => [])
-    ]).then(([ubuJson, prelingerJson, vhsJson, globalHidden]) => {
+    ]).then(([ubuJson, prelingerJson, vhsJson, rareJson, globalHidden]) => {
         // Merge server-side global hidden list with any local localStorage hidden
         if (globalHidden.length > 0) {
           setHiddenLinks(prev => new Set([...prev, ...globalHidden]));
@@ -116,7 +117,8 @@ function App() {
         const ubuData = ubuJson.map(row => ({...row, Source: 'UbuWeb'}));
         const prelingerData = prelingerJson.map(row => ({...row, Source: 'Prelinger'}));
         const vhsData = vhsJson.map(row => ({...row, Source: 'VHS Instructionals'}));
-        const combined = [...ubuData, ...prelingerData, ...vhsData];
+        const rareData = rareJson.map(row => ({...row, Source: 'Rarefilmm'}));
+        const combined = [...ubuData, ...prelingerData, ...vhsData, ...rareData];
 
         const parsed = combined.map(row => {
           const parseStringList = (str) => {
@@ -449,13 +451,13 @@ function App() {
                 onChange={(e) => {
                   setActiveSources(prev => {
                     const next = new Set(prev);
-                    const allSources = ['UbuWeb', 'Prelinger', 'VHS Instructionals'];
+                    const allSources = ['UbuWeb', 'Prelinger', 'VHS Instructionals', 'Rarefilmm'];
                     if (e.target.checked) {
                       next.add('UbuWeb');
                       if (allSources.every(s => next.has(s))) return new Set();
                     } else {
                       if (next.size === 0) {
-                        next.add('Prelinger'); next.add('VHS Instructionals');
+                        next.add('Prelinger'); next.add('VHS Instructionals'); next.add('Rarefilmm');
                       } else { next.delete('UbuWeb'); }
                     }
                     return next;
@@ -464,6 +466,29 @@ function App() {
                 style={{accentColor: 'var(--accent)'}}
               />
               UbuWeb
+            </label>
+
+            {/* Rarefilmm */}
+            <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#ccc'}}>
+              <input type="checkbox" checked={activeSources.size === 0 || activeSources.has('Rarefilmm')}
+                onChange={(e) => {
+                  setActiveSources(prev => {
+                    const next = new Set(prev);
+                    const allSources = ['UbuWeb', 'Prelinger', 'VHS Instructionals', 'Rarefilmm'];
+                    if (e.target.checked) {
+                      next.add('Rarefilmm');
+                      if (allSources.every(s => next.has(s))) return new Set();
+                    } else {
+                      if (next.size === 0) {
+                        next.add('UbuWeb'); next.add('Prelinger'); next.add('VHS Instructionals');
+                      } else { next.delete('Rarefilmm'); }
+                    }
+                    return next;
+                  }); setPage(1);
+                }}
+                style={{accentColor: 'var(--accent)'}}
+              />
+              Rarefilmm
             </label>
             
             {/* Internet Archive Group */}
@@ -475,11 +500,12 @@ function App() {
                     setActiveSources(prev => {
                       const next = new Set(prev);
                       const iaSources = ['Prelinger', 'VHS Instructionals'];
+                      const allSources = ['UbuWeb', 'Prelinger', 'VHS Instructionals', 'Rarefilmm'];
                       if (e.target.checked) {
                         iaSources.forEach(s => next.add(s));
-                        if (next.has('UbuWeb')) return new Set();
+                        if (allSources.every(s => next.has(s))) return new Set();
                       } else {
-                        if (next.size === 0) { return new Set(['UbuWeb']); }
+                        if (next.size === 0) { return new Set(['UbuWeb', 'Rarefilmm']); }
                         iaSources.forEach(s => next.delete(s));
                       }
                       return next;
@@ -498,12 +524,12 @@ function App() {
                     onChange={(e) => {
                       setActiveSources(prev => {
                         const next = new Set(prev);
-                        const allSources = ['UbuWeb', 'Prelinger', 'VHS Instructionals'];
+                        const allSources = ['UbuWeb', 'Prelinger', 'VHS Instructionals', 'Rarefilmm'];
                         if (e.target.checked) {
                           next.add('Prelinger');
                           if (allSources.every(s => next.has(s))) return new Set();
                         } else {
-                          if (next.size === 0) { next.add('UbuWeb'); next.add('VHS Instructionals'); }
+                          if (next.size === 0) { next.add('UbuWeb'); next.add('VHS Instructionals'); next.add('Rarefilmm'); }
                           else { next.delete('Prelinger'); }
                         }
                         return next;
@@ -521,12 +547,12 @@ function App() {
                     onChange={(e) => {
                       setActiveSources(prev => {
                         const next = new Set(prev);
-                        const allSources = ['UbuWeb', 'Prelinger', 'VHS Instructionals'];
+                        const allSources = ['UbuWeb', 'Prelinger', 'VHS Instructionals', 'Rarefilmm'];
                         if (e.target.checked) {
                           next.add('VHS Instructionals');
                           if (allSources.every(s => next.has(s))) return new Set();
                         } else {
-                          if (next.size === 0) { next.add('UbuWeb'); next.add('Prelinger'); }
+                          if (next.size === 0) { next.add('UbuWeb'); next.add('Prelinger'); next.add('Rarefilmm'); }
                           else { next.delete('VHS Instructionals'); }
                         }
                         return next;
