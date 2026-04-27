@@ -18,6 +18,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeTags, setActiveTags] = useState(new Set());
+  const [activeSource, setActiveSource] = useState('All');
   const [activeVideo, setActiveVideo] = useState(null);
   const [sortOption, setSortOption] = useState("random");
   const [page, setPage] = useState(1);
@@ -58,11 +59,15 @@ function App() {
 
   // Fetch data
   useEffect(() => {
-    fetch('ubu_data_light.json')
-      .then(res => res.json())
-      .then(json => {
-        // Parse list columns
-        const parsed = json.map(row => {
+    Promise.all([
+      fetch('ubu_data_light.json').then(res => res.json()).catch(() => []),
+      fetch('prelinger_data_light.json').then(res => res.json()).catch(() => [])
+    ]).then(([ubuJson, prelingerJson]) => {
+        const ubuData = ubuJson.map(row => ({...row, Source: 'UbuWeb'}));
+        const prelingerData = prelingerJson.map(row => ({...row, Source: 'Prelinger'}));
+        const combined = [...ubuData, ...prelingerData];
+
+        const parsed = combined.map(row => {
           const parseStringList = (str) => {
             if (!str) return [];
             return str.split(',').map(s => s.trim()).filter(s => s);
@@ -94,6 +99,7 @@ function App() {
 
   const clearFilters = () => {
     setActiveTags(new Set());
+    setActiveSource('All');
     setSearch("");
     setSortOption("random");
     setShowFavoritesOnly(false);
@@ -102,6 +108,9 @@ function App() {
 
   const filteredData = useMemo(() => {
     let result = data;
+    if (activeSource !== 'All') {
+      result = result.filter(row => row.Source === activeSource);
+    }
     if (showFavoritesOnly) {
       result = result.filter(row => favorites.has(`${row.Title}_${row.Artist}`));
     }
@@ -122,7 +131,7 @@ function App() {
       });
     }
     return result;
-  }, [data, search, activeTags, showFavoritesOnly, favorites]);
+  }, [data, search, activeTags, showFavoritesOnly, favorites, activeSource]);
 
   const sortedData = useMemo(() => {
     let result = [...filteredData];
@@ -287,6 +296,24 @@ function App() {
         </div>
 
         <div style={{marginBottom: '20px'}}>
+          <div className="filter-group-header" style={{marginTop: 0}}>Archive Source</div>
+          <select 
+            value={activeSource} 
+            onChange={e => { setActiveSource(e.target.value); setPage(1); }}
+            style={{
+              width: '100%', padding: '8px 10px', fontSize: '13px',
+              background: 'rgba(255,255,255,0.03)', color: '#fff',
+              border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px',
+              outline: 'none', colorScheme: 'dark'
+            }}
+          >
+            <option value="All">All Archives</option>
+            <option value="UbuWeb">UbuWeb Archive</option>
+            <option value="Prelinger">Prelinger Collections</option>
+          </select>
+        </div>
+
+        <div style={{marginBottom: '20px'}}>
           <div className="filter-group-header" style={{marginTop: 0}}>Sort By</div>
           <select 
             value={sortOption} 
@@ -359,7 +386,7 @@ function App() {
                     {isFav ? '❤️' : '🤍'}
                   </button>
                 </div>
-                <p className="card-artist">{row.Artist || 'Unknown Artist'} {row.year_clean ? `(${row.year_clean})` : ''}</p>
+                <p className="card-artist">{row.Artist || 'Unknown Artist'} {row.year_clean ? `(${row.year_clean})` : ''} • {row.Source}</p>
                 
                 <div className="tags-container">
                   {row.Genres_list.map(t => (
@@ -464,7 +491,7 @@ function App() {
                   {favorites.has(`${activeVideo.Title}_${activeVideo.Artist}`) ? '❤️' : '🤍'}
                 </button>
               </div>
-              <p style={{margin: '0 0 10px 0', color: 'var(--accent)'}}>{activeVideo.Artist}</p>
+              <p style={{margin: '0 0 10px 0', color: 'var(--accent)'}}>{activeVideo.Artist} • {activeVideo.Source}</p>
               <ExpandableDescription text={activeVideo.Description} defaultOpen={true} maxHeight="25vh" />
             </div>
           </div>
