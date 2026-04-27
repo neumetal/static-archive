@@ -3,6 +3,7 @@ const { useState, useEffect, useMemo, useCallback, useRef } = React;
 function App() {
   const videoContainerRef = useRef(null);
   const [skipCountdown, setSkipCountdown] = useState(0);
+  const [skipHistory, setSkipHistory] = useState([]); // timestamps of manual skips
 
   const toggleFullScreen = () => {
     if (!document.fullscreenElement) {
@@ -46,8 +47,10 @@ function App() {
   const [curatorMode, setCuratorMode] = useState(false);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
+  const skipWaitTimeRef = useRef(30);
+
   useEffect(() => {
-    if (activeVideo) setSkipCountdown(30);
+    if (activeVideo) setSkipCountdown(skipWaitTimeRef.current);
     else setSkipCountdown(0);
   }, [activeVideo]);
 
@@ -58,6 +61,15 @@ function App() {
     }
     return () => clearInterval(interval);
   }, [skipCountdown]);
+
+  // Purge expired skip history every 10s so color/wait time recovers over time
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const cutoff = Date.now() - 5 * 60 * 1000;
+      setSkipHistory(prev => prev.filter(t => t > cutoff));
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('ubu_favorites', JSON.stringify(Array.from(favorites)));
@@ -249,15 +261,24 @@ function App() {
 
   const totalPages = Math.ceil(sortedData.length / itemsPerPage);
 
-  const playNext = useCallback((force = false) => {
-    if (typeof force !== 'boolean') force = false;
-    if (!force && skipCountdown > 0) return;
+  // Skip karma: scale wait time and color based on recent manual skips
+  const recentSkipCount = useMemo(() => {
+    const cutoff = Date.now() - 5 * 60 * 1000;
+    return skipHistory.filter(t => t > cutoff).length;
+  }, [skipHistory]);
+  const skipWaitTime = Math.min(30 + recentSkipCount * 5, 60);
+  skipWaitTimeRef.current = skipWaitTime; // always current without dep array issues
+  const skipRatio = Math.min(recentSkipCount / 6, 1);
+  const skipHue = Math.round(220 * (1 - skipRatio)); // 220=blue → 0=red
+  const skipBtnColor = `hsl(${skipHue}, 75%, 60%)`;
+
+  // Core advance — used by video end (onEnded) and playAll, no skip recorded
+  const advanceVideo = useCallback(() => {
     const validVideos = sortedData.filter(v => v.Link && typeof v.Link === 'string');
     const currentIdx = playIndexRef.current;
     if (currentIdx === null) return;
     const nextIdx = currentIdx + 1;
     if (nextIdx >= validVideos.length) {
-      // End of list — close player
       setActiveVideo(null);
       setPlayIndex(null);
       playIndexRef.current = null;
@@ -266,7 +287,15 @@ function App() {
       playIndexRef.current = nextIdx;
       setActiveVideo(validVideos[nextIdx]);
     }
-  }, [sortedData, skipCountdown]);
+  }, [sortedData]);
+
+  // Manual skip — records timestamp, applies wait, then advances
+  const handleUserSkip = useCallback(() => {
+    if (skipCountdown > 0) return;
+    const now = Date.now();
+    setSkipHistory(prev => [...prev.filter(t => now - t < 5 * 60 * 1000), now]);
+    advanceVideo();
+  }, [skipCountdown, advanceVideo]);
 
   const playAll = useCallback(() => {
     const validVideos = sortedData.filter(v => v.Link && typeof v.Link === 'string');
@@ -279,21 +308,20 @@ function App() {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (activeVideo && (e.key === 'ArrowRight' || e.key.toLowerCase() === 'n')) {
-        playNext();
+        handleUserSkip();
       }
       if (activeVideo && e.key === 'Escape') {
         setActiveVideo(null);
         setPlayIndex(null);
         playIndexRef.current = null;
       }
-      // Secret curator mode toggle: Ctrl+Shift+H
       if (e.ctrlKey && e.shiftKey && e.key === 'H') {
         setCuratorMode(prev => !prev);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeVideo, playNext]);
+  }, [activeVideo, handleUserSkip]);
 
   // Resolve playIndex from sortedData whenever a video is open but index isn't set yet
   // (happens when video is opened via URL param — sortedData isn't ready until after render)
@@ -617,17 +645,19 @@ function App() {
                   >🚫 Hide</button>
                 )}
                 <button 
-                  onClick={playNext} 
-                  title={skipCountdown > 0 ? `Please wait ${skipCountdown}s` : "Next video"} 
+                  onClick={handleUserSkip} 
+                  title={skipCountdown > 0 ? `Please wait ${skipCountdown}s (${recentSkipCount} recent skips)` : `Next video`}
                   style={{
-                    background:'rgba(0,0,0,0.5)', border:'1px solid rgba(255,255,255,0.2)', 
+                    background: `hsla(${skipHue}, 60%, 20%, 0.7)`,
+                    border: `1px solid ${skipBtnColor}`,
                     borderRadius:'6px', padding:'6px 10px', fontSize:'14px', 
                     cursor: skipCountdown > 0 ? 'not-allowed' : 'pointer', 
-                    opacity: skipCountdown > 0 ? 0.6 : 1,
-                    backdropFilter:'blur(4px)', color:'#fff'
+                    opacity: skipCountdown > 0 ? 0.75 : 1,
+                    backdropFilter:'blur(4px)', color: skipBtnColor,
+                    fontWeight: '600', transition: 'border-color 0.5s, color 0.5s, background 0.5s'
                   }}
                 >
-                  ⏭️ {skipCountdown > 0 ? `Next (${skipCountdown})` : `Next`}
+                  ⏭️ {skipCountdown > 0 ? `Next (${skipCountdown}s)` : `Next`}
                 </button>
                 <button onClick={toggleFullScreen} title="Toggle Fullscreen Controls" style={{background:'rgba(0,0,0,0.5)', border:'1px solid rgba(255,255,255,0.2)', borderRadius:'6px', padding:'6px 10px', fontSize:'14px', cursor:'pointer', backdropFilter:'blur(4px)', color:'#fff', fontWeight: 'bold'}}>
                   ⛶ Fullscreen
@@ -641,7 +671,7 @@ function App() {
                   playsInline
                   name="media"
                   src={activeVideo.Link} 
-                  onEnded={playNext}
+                  onEnded={advanceVideo}
                   style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: '#000'}}
                 >
                   <source src={activeVideo.Link} type="video/quicktime" />
@@ -660,14 +690,7 @@ function App() {
             </div>
             <div className="modal-info">
               <div style={{display: 'flex', alignItems: 'center', marginBottom: '5px'}}>
-                <h2 style={{margin: 0, fontSize: '22px', marginRight: '15px'}}>{activeVideo.Title}</h2>
-                <button 
-                  onClick={() => toggleFavorite(activeVideo)}
-                  style={{background:'transparent', border:'none', cursor:'pointer', fontSize:'24px', padding:0}}
-                  title={favorites.has(`${activeVideo.Title}_${activeVideo.Artist}`) ? "Remove from Favorites" : "Add to Favorites"}
-                >
-                  {favorites.has(`${activeVideo.Title}_${activeVideo.Artist}`) ? '❤️' : '🤍'}
-                </button>
+                <h2 style={{margin: 0, fontSize: '22px'}}>{activeVideo.Title}</h2>
               </div>
               <p style={{margin: '0 0 10px 0', color: 'var(--accent)'}}>{activeVideo.Artist} • {activeVideo.Source}</p>
               <ExpandableDescription text={activeVideo.Description} defaultOpen={true} maxHeight="25vh" />
