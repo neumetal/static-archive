@@ -476,6 +476,7 @@ function App() {
                 </video>
               ) : (
                 <iframe 
+                  key={activeVideo.Link}
                   src={`${activeVideo.Link}${activeVideo.Link.includes('?') ? '&' : '?'}autoplay=1`}
                   allow="autoplay; fullscreen; picture-in-picture"
                   allowFullScreen
