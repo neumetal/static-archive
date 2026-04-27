@@ -1,6 +1,18 @@
-const { useState, useEffect, useMemo, useCallback } = React;
+const { useState, useEffect, useMemo, useCallback, useRef } = React;
 
 function App() {
+  const videoContainerRef = useRef(null);
+
+  const toggleFullScreen = () => {
+    if (!document.fullscreenElement) {
+      if (videoContainerRef.current?.requestFullscreen) videoContainerRef.current.requestFullscreen();
+      else if (videoContainerRef.current?.webkitRequestFullscreen) videoContainerRef.current.webkitRequestFullscreen();
+    } else {
+      if (document.exitFullscreen) document.exitFullscreen();
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+    }
+  };
+
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -148,7 +160,7 @@ function App() {
 
   const totalPages = Math.ceil(sortedData.length / itemsPerPage);
 
-  const surpriseMe = () => {
+  const surpriseMe = useCallback(() => {
     const validVideos = filteredData.filter(v => v.Link && typeof v.Link === 'string');
     if (validVideos.length > 0) {
       const random = validVideos[Math.floor(Math.random() * validVideos.length)];
@@ -156,7 +168,18 @@ function App() {
     } else {
       alert("No playable videos found in the current filter context.");
     }
-  };
+  }, [filteredData]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Invisible global shortcut bypasses native fullscreen restrictions
+      if (activeVideo && (e.key === 'ArrowRight' || e.key.toLowerCase() === 'n')) {
+        surpriseMe();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeVideo, surpriseMe]);
 
   const ExpandableDescription = ({ text, defaultOpen = false, maxHeight = 'none' }) => {
     const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -367,7 +390,22 @@ function App() {
         <div className="modal-overlay" onClick={() => setActiveVideo(null)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <button className="modal-close" onClick={() => setActiveVideo(null)}>×</button>
-            <div className="video-container">
+            <div className="video-container" ref={videoContainerRef}>
+              <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '8px', zIndex: 9999 }}>
+                <button 
+                  onClick={() => toggleFavorite(activeVideo)}
+                  style={{background:'rgba(0,0,0,0.5)', border:'1px solid rgba(255,255,255,0.2)', borderRadius:'6px', padding:'6px 10px', fontSize:'14px', cursor:'pointer', backdropFilter:'blur(4px)', color:'#fff'}}
+                  title={favorites.has(`${activeVideo.Title}_${activeVideo.Artist}`) ? "Remove from Favorites" : "Add to Favorites"}
+                >
+                  {favorites.has(`${activeVideo.Title}_${activeVideo.Artist}`) ? '❤️' : '🤍'}
+                </button>
+                <button onClick={surpriseMe} title="Skip to random video" style={{background:'rgba(0,0,0,0.5)', border:'1px solid rgba(255,255,255,0.2)', borderRadius:'6px', padding:'6px 10px', fontSize:'14px', cursor:'pointer', backdropFilter:'blur(4px)', color:'#fff'}}>
+                  🎲 Skip
+                </button>
+                <button onClick={toggleFullScreen} title="Toggle Fullscreen Controls" style={{background:'rgba(0,0,0,0.5)', border:'1px solid rgba(255,255,255,0.2)', borderRadius:'6px', padding:'6px 10px', fontSize:'14px', cursor:'pointer', backdropFilter:'blur(4px)', color:'#fff', fontWeight: 'bold'}}>
+                  ⛶ Fullscreen
+                </button>
+              </div>
               {activeVideo.Link.match(/\.(mp4|mov|m4v|webm|ogg|flv|avi|mkv)(\?.*)?$/i) ? (
                 <video 
                   controls 
