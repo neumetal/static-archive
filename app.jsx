@@ -273,7 +273,7 @@ function App() {
   return (
     <div id="app">
       <aside className="sidebar">
-        <div className="brand">UbuWeb.</div>
+        <div className="brand">Archive TV.</div>
         
         <input 
           className="search-input"
