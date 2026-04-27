@@ -14,16 +14,23 @@ function App() {
     }
   };
 
+  // Initialize filter state from URL params for deep linking
+  const _p = new URLSearchParams(window.location.search);
+
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [activeTags, setActiveTags] = useState(new Set());
-  const [activeSources, setActiveSources] = useState(new Set()); // empty = all
-  const [activeArtist, setActiveArtist] = useState(null);
+  const [search, setSearch] = useState(_p.get('search') || "");
+  const [activeTags, setActiveTags] = useState(() => {
+    const t = _p.get('tags'); return t ? new Set(t.split(',').map(s => s.trim()).filter(Boolean)) : new Set();
+  });
+  const [activeSources, setActiveSources] = useState(() => {
+    const s = _p.get('sources'); return s ? new Set(s.split(',').map(x => x.trim()).filter(Boolean)) : new Set();
+  });
+  const [activeArtist, setActiveArtist] = useState(_p.get('artist') || null);
   const [activeVideo, setActiveVideo] = useState(null);
   const [playIndex, setPlayIndex] = useState(null);
   const playIndexRef = useRef(null);
-  const [sortOption, setSortOption] = useState("random");
+  const [sortOption, setSortOption] = useState(_p.get('sort') || "random");
   const [page, setPage] = useState(1);
   const itemsPerPage = 30;
 
@@ -49,6 +56,18 @@ function App() {
   useEffect(() => {
     localStorage.setItem('ubu_favorites', JSON.stringify(Array.from(favorites)));
   }, [favorites]);
+
+  // Sync filter state back to URL so links are shareable
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (activeArtist) params.set('artist', activeArtist);
+    if (sortOption !== 'random') params.set('sort', sortOption);
+    if (activeTags.size > 0) params.set('tags', Array.from(activeTags).join(','));
+    if (activeSources.size > 0) params.set('sources', Array.from(activeSources).join(','));
+    const qs = params.toString();
+    window.history.replaceState({}, '', qs ? `?${qs}` : window.location.pathname);
+  }, [search, activeArtist, sortOption, activeTags, activeSources]);
 
   const toggleFavorite = (row) => {
     const uid = `${row.Title}_${row.Artist}`;
