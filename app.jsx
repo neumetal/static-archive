@@ -475,7 +475,7 @@ function App() {
                 </video>
               ) : (
                 <iframe 
-                  src={activeVideo.Link} 
+                  src={activeVideo.Source === 'Prelinger' ? (activeVideo.Link.includes('?') ? `${activeVideo.Link}&start=5` : `${activeVideo.Link}?start=5`) : activeVideo.Link} 
                   title={activeVideo.Title}
                 ></iframe>
               )}
