@@ -682,22 +682,6 @@ function App() {
                 <button onClick={toggleFullScreen} title="Toggle Fullscreen Controls" style={{background:'rgba(0,0,0,0.5)', border:'1px solid rgba(255,255,255,0.2)', borderRadius:'6px', padding:'6px 10px', fontSize:'14px', cursor:'pointer', backdropFilter:'blur(4px)', color:'#fff', fontWeight: 'bold'}}>
                   ⛶ Fullscreen
                 </button>
-                {activeVideo.Link && (
-                  <a 
-                    href={activeVideo.Link.includes('archive.org/embed/') ? activeVideo.Link.replace('/embed/', '/details/') : activeVideo.Link}
-                    download={!activeVideo.Link.includes('archive.org/embed/')}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{
-                      background:'rgba(0,0,0,0.5)', border:'1px solid rgba(255,255,255,0.2)', 
-                      borderRadius:'6px', padding:'6px 10px', fontSize:'14px', 
-                      cursor:'pointer', backdropFilter:'blur(4px)', color:'#fff', 
-                      fontWeight: 'bold', textDecoration: 'none', display: 'flex', alignItems: 'center'
-                    }}
-                  >
-                    {activeVideo.Link.includes('archive.org/embed/') ? '📥 View Options' : '📥 Download'}
-                  </a>
-                )}
               </div>
               {activeVideo.Link.match(/\.(mp4|mov|m4v|webm|ogg|mkv)(\?.*)?$/i) ? (
                 <video 
@@ -725,16 +709,21 @@ function App() {
               )}
             </div>
             <div className="modal-info">
-              <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px'}}>
+              <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px', gap: '15px'}}>
                 <h2 style={{margin: 0, fontSize: '22px'}}>{activeVideo.Title}</h2>
-                {activeVideo.Link.includes('archive.org') && (
+                {activeVideo.Link && (
                   <a 
-                    href={activeVideo.Link.replace('/embed/', '/details/')} 
+                    href={activeVideo.Link.includes('archive.org/embed/') ? activeVideo.Link.replace('/embed/', '/details/') : activeVideo.Link} 
+                    download={!activeVideo.Link.includes('archive.org/embed/')}
                     target="_blank" 
                     rel="noreferrer"
-                    style={{fontSize: '12px', color: 'var(--accent)', textDecoration: 'none', fontWeight: 'bold'}}
+                    style={{
+                      fontSize: '13px', color: 'var(--accent)', textDecoration: 'none', fontWeight: 'bold',
+                      padding: '6px 12px', background: 'rgba(90,108,242,0.1)', borderRadius: '6px',
+                      border: '1px solid rgba(90,108,242,0.2)', whiteSpace: 'nowrap'
+                    }}
                   >
-                    ↗ Open on Archive.org
+                    {activeVideo.Link.includes('archive.org/embed/') ? '📥 View Options' : '📥 Download'}
                   </a>
                 )}
               </div>
