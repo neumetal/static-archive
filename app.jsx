@@ -523,7 +523,7 @@ function App() {
                   ⛶ Fullscreen
                 </button>
               </div>
-              {activeVideo.Link.match(/\.(mp4|mov|m4v|webm|ogg)(\?.*)?$/i) ? (
+              {activeVideo.Link.match(/\.(mp4|mov|m4v|webm|ogg|mkv)(\?.*)?$/i) ? (
                 <video 
                   controls 
                   controlsList="nofullscreen"
