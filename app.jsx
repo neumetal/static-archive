@@ -459,11 +459,12 @@ function App() {
                   ⛶ Fullscreen
                 </button>
               </div>
-              {activeVideo.Link.match(/\.(mp4|mov|m4v|webm|ogg|flv|avi|mkv)(\?.*)?$/i) ? (
+              {activeVideo.Link.match(/\.(mp4|mov|m4v|webm|ogg)(\?.*)?$/i) ? (
                 <video 
                   controls 
                   controlsList="nofullscreen"
-                  autoPlay 
+                  autoPlay
+                  playsInline
                   name="media"
                   src={activeVideo.Link} 
                   onEnded={surpriseMe}
@@ -476,7 +477,8 @@ function App() {
               ) : (
                 <iframe 
                   src={`${activeVideo.Link}${activeVideo.Link.includes('?') ? '&' : '?'}autoplay=1`}
-                  allow="autoplay"
+                  allow="autoplay; fullscreen; picture-in-picture"
+                  allowFullScreen
                   title={activeVideo.Title}
                 ></iframe>
               )}
