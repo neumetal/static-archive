@@ -250,6 +250,28 @@ function App() {
 
   const totalPages = Math.ceil(sortedData.length / itemsPerPage);
 
+  // Related Works: score by shared tags + same artist, pick top 4
+  const relatedWorks = useMemo(() => {
+    if (!activeVideo) return [];
+    const activeTagSet = new Set([
+      ...(activeVideo.Genres_list || []),
+      ...(activeVideo.Moods_list  || []),
+      ...(activeVideo.Themes_list || [])
+    ]);
+    return sortedData
+      .filter(v => v.Link && v.Link !== activeVideo.Link)
+      .map(v => {
+        let score = v.Artist === activeVideo.Artist ? 8 : 0;
+        [...(v.Genres_list || []), ...(v.Moods_list || []), ...(v.Themes_list || [])]
+          .forEach(t => { if (activeTagSet.has(t)) score += 1; });
+        return { v, score };
+      })
+      .filter(({ score }) => score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 4)
+      .map(({ v }) => v);
+  }, [activeVideo, sortedData]);
+
   // Core advance — used by video end (onEnded), no skip countdown
   const advanceVideo = useCallback(() => {
     const validVideos = sortedData.filter(v => v.Link && typeof v.Link === 'string');
@@ -536,8 +558,27 @@ function App() {
           {paginatedData.map((row, idx) => {
             const uid = `${row.Title}_${row.Artist}`;
             const isFav = favorites.has(uid);
+            const isNowPlaying = !!(activeVideo && row.Link && row.Link === activeVideo.Link);
             return (
-              <div className="card" key={`card-${idx}`}>
+              <div
+                className="card"
+                key={`card-${idx}`}
+                style={isNowPlaying ? {
+                  border: '1px solid var(--accent)',
+                  boxShadow: '0 0 0 1px var(--accent), 0 15px 40px rgba(90,108,242,0.2), 0 0 50px rgba(90,108,242,0.08)'
+                } : {}}
+              >
+                {isNowPlaying && (
+                  <div style={{
+                    position: 'absolute', top: '12px', left: '14px',
+                    background: 'var(--accent)', color: '#fff',
+                    fontSize: '9px', fontWeight: '800', letterSpacing: '1.5px',
+                    padding: '3px 8px', borderRadius: '20px', textTransform: 'uppercase',
+                    display: 'flex', alignItems: 'center', gap: '4px'
+                  }}>
+                    <span style={{animation: 'pulse 1.2s ease-in-out infinite'}}>▶</span> NOW PLAYING
+                  </div>
+                )}
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
                   <h3 className="card-title" style={{marginRight: '10px'}}>{row.Title || 'Unknown Title'}</h3>
                   <button 
@@ -673,6 +714,43 @@ function App() {
               </div>
               <p style={{margin: '0 0 10px 0', color: 'var(--accent)'}}>{activeVideo.Artist} • {activeVideo.Source}</p>
               <ExpandableDescription text={activeVideo.Description} defaultOpen={true} maxHeight="25vh" />
+
+              {/* Related Works */}
+              {relatedWorks.length > 0 && (
+                <div style={{marginTop: '20px'}}>
+                  <div style={{fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1.5px', color: 'var(--text-muted)', marginBottom: '10px', fontWeight: '600'}}>Related Works</div>
+                  <div style={{display: 'flex', flexDirection: 'column', gap: '6px'}}>
+                    {relatedWorks.map(v => (
+                      <div
+                        key={v.Link}
+                        onClick={() => {
+                          const validVideos = sortedData.filter(x => x.Link && typeof x.Link === 'string');
+                          const idx = validVideos.findIndex(x => x.Link === v.Link);
+                          setPlayIndex(idx >= 0 ? idx : 0);
+                          playIndexRef.current = idx >= 0 ? idx : 0;
+                          setActiveVideo(v);
+                        }}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '10px',
+                          padding: '9px 12px', borderRadius: '8px', cursor: 'pointer',
+                          background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseOver={e => { e.currentTarget.style.background='rgba(90,108,242,0.1)'; e.currentTarget.style.borderColor='rgba(90,108,242,0.3)'; }}
+                        onMouseOut={e =>  { e.currentTarget.style.background='rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor='rgba(255,255,255,0.07)'; }}
+                      >
+                        <span style={{fontSize: '16px', opacity: 0.7}}>🎬</span>
+                        <div style={{overflow: 'hidden', flex: 1}}>
+                          <div style={{fontSize: '12px', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#eee'}}>{v.Title}</div>
+                          <div style={{fontSize: '11px', color: 'var(--accent)', marginTop: '1px'}}>{v.Artist}</div>
+                        </div>
+                        <span style={{fontSize: '11px', color: '#555', flexShrink: 0}}>▶</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <button
                 onClick={() => { setActiveVideo(null); setPlayIndex(null); playIndexRef.current = null; }}
                 style={{
