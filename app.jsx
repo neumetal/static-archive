@@ -97,12 +97,18 @@ function App() {
     });
   };
 
-  // Fetch data
+  // Fetch data + global hidden list
   useEffect(() => {
     Promise.all([
       fetch('ubu_data_light.json').then(res => res.json()).catch(() => []),
-      fetch('prelinger_data_light.json').then(res => res.json()).catch(() => [])
-    ]).then(([ubuJson, prelingerJson]) => {
+      fetch('prelinger_data_light.json').then(res => res.json()).catch(() => []),
+      fetch('hidden_links.json').then(res => res.json()).catch(() => [])
+    ]).then(([ubuJson, prelingerJson, globalHidden]) => {
+        // Merge server-side global hidden list with any local localStorage hidden
+        if (globalHidden.length > 0) {
+          setHiddenLinks(prev => new Set([...prev, ...globalHidden]));
+        }
+
         const ubuData = ubuJson.map(row => ({...row, Source: 'UbuWeb'}));
         const prelingerData = prelingerJson.map(row => ({...row, Source: 'Prelinger'}));
         const combined = [...ubuData, ...prelingerData];
@@ -119,7 +125,7 @@ function App() {
             Moods_list: parseStringList(row.Moods),
             Themes_list: parseStringList(row.Themes),
             year_clean: parseInt(row.Year) || null,
-            random_key: Math.random() // Unique seed for stable randomization
+            random_key: Math.random()
           };
         });
         setData(parsed);
@@ -344,7 +350,19 @@ function App() {
       <aside className="sidebar">
         <div className="brand">
           Archive TV.
-          {curatorMode && <span style={{fontSize:'10px', letterSpacing:'2px', color:'#f87', marginLeft:'8px', verticalAlign:'middle'}}>CURATOR</span>}
+          {curatorMode && (
+            <span style={{fontSize:'10px', letterSpacing:'2px', color:'#f87', marginLeft:'8px', verticalAlign:'middle'}}>
+              CURATOR
+              <button
+                onClick={() => {
+                  const json = JSON.stringify(Array.from(hiddenLinks), null, 2);
+                  navigator.clipboard.writeText(json);
+                  alert(`Copied ${hiddenLinks.size} hidden links to clipboard!\n\nPaste this into react-app/hidden_links.json and git push to hide globally.`);
+                }}
+                style={{marginLeft:'8px', fontSize:'9px', padding:'2px 6px', background:'rgba(255,100,100,0.2)', border:'1px solid #f87', borderRadius:'4px', color:'#f87', cursor:'pointer', letterSpacing:'normal'}}
+              >Export ({hiddenLinks.size})</button>
+            </span>
+          )}
         </div>
         
         <input 
