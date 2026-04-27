@@ -105,8 +105,9 @@ function App() {
     Promise.all([
       fetch('ubu_data_light.json').then(res => res.json()).catch(() => []),
       fetch('prelinger_data_light.json').then(res => res.json()).catch(() => []),
+      fetch('vhsinstructionals_data_light.json').then(res => res.json()).catch(() => []),
       fetch('hidden_links.json').then(res => res.json()).catch(() => [])
-    ]).then(([ubuJson, prelingerJson, globalHidden]) => {
+    ]).then(([ubuJson, prelingerJson, vhsJson, globalHidden]) => {
         // Merge server-side global hidden list with any local localStorage hidden
         if (globalHidden.length > 0) {
           setHiddenLinks(prev => new Set([...prev, ...globalHidden]));
@@ -114,7 +115,8 @@ function App() {
 
         const ubuData = ubuJson.map(row => ({...row, Source: 'UbuWeb'}));
         const prelingerData = prelingerJson.map(row => ({...row, Source: 'Prelinger'}));
-        const combined = [...ubuData, ...prelingerData];
+        const vhsData = vhsJson.map(row => ({...row, Source: 'VHS Instructionals'}));
+        const combined = [...ubuData, ...prelingerData, ...vhsData];
 
         const parsed = combined.map(row => {
           const parseStringList = (str) => {
@@ -447,8 +449,15 @@ function App() {
                 onChange={(e) => {
                   setActiveSources(prev => {
                     const next = new Set(prev);
-                    if (e.target.checked) { if (next.size === 1 && next.has('Prelinger')) { return new Set(); } next.add('UbuWeb'); }
-                    else { if (next.size === 0) { next.add('Prelinger'); } else { next.delete('UbuWeb'); } }
+                    const allSources = ['UbuWeb', 'Prelinger', 'VHS Instructionals'];
+                    if (e.target.checked) {
+                      next.add('UbuWeb');
+                      if (allSources.every(s => next.has(s))) return new Set();
+                    } else {
+                      if (next.size === 0) {
+                        next.add('Prelinger'); next.add('VHS Instructionals');
+                      } else { next.delete('UbuWeb'); }
+                    }
                     return next;
                   }); setPage(1);
                 }}
@@ -456,38 +465,79 @@ function App() {
               />
               UbuWeb
             </label>
-            {/* Internet Archive parent */}
-            <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#ccc'}}>
-              <input type="checkbox" 
-                checked={activeSources.size === 0 || activeSources.has('Prelinger')}
-                onChange={(e) => {
-                  setActiveSources(prev => {
-                    const next = new Set(prev);
-                    if (e.target.checked) { if (next.size === 1 && next.has('UbuWeb')) { return new Set(); } next.add('Prelinger'); }
-                    else { if (next.size === 0) { next.add('UbuWeb'); } else { next.delete('Prelinger'); } }
-                    return next;
+            
+            {/* Internet Archive Group */}
+            <div style={{marginTop: '4px'}}>
+              <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#ccc'}}>
+                <input type="checkbox" 
+                  checked={activeSources.size === 0 || (activeSources.has('Prelinger') && activeSources.has('VHS Instructionals'))}
+                  onChange={(e) => {
+                    setActiveSources(prev => {
+                      const next = new Set(prev);
+                      const iaSources = ['Prelinger', 'VHS Instructionals'];
+                      if (e.target.checked) {
+                        iaSources.forEach(s => next.add(s));
+                        if (next.has('UbuWeb')) return new Set();
+                      } else {
+                        if (next.size === 0) { return new Set(['UbuWeb']); }
+                        iaSources.forEach(s => next.delete(s));
+                      }
+                      return next;
+                    }); setPage(1);
+                  }}
+                  style={{accentColor: 'var(--accent)'}}
+                />
+                Internet Archive
+              </label>
+              
+              <div style={{display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px', paddingLeft: '20px'}}>
+                {/* Prelinger */}
+                <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#999'}}>
+                  <input type="checkbox"
+                    checked={activeSources.size === 0 || activeSources.has('Prelinger')}
+                    onChange={(e) => {
+                      setActiveSources(prev => {
+                        const next = new Set(prev);
+                        const allSources = ['UbuWeb', 'Prelinger', 'VHS Instructionals'];
+                        if (e.target.checked) {
+                          next.add('Prelinger');
+                          if (allSources.every(s => next.has(s))) return new Set();
+                        } else {
+                          if (next.size === 0) { next.add('UbuWeb'); next.add('VHS Instructionals'); }
+                          else { next.delete('Prelinger'); }
+                        }
+                        return next;
                   }); setPage(1);
                 }}
                 style={{accentColor: 'var(--accent)'}}
               />
-              Internet Archive
-            </label>
-            {/* Children of Internet Archive */}
-            <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#999', paddingLeft: '20px'}}>
-              <input type="checkbox"
-                checked={activeSources.size === 0 || activeSources.has('Prelinger')}
-                onChange={(e) => {
-                  setActiveSources(prev => {
-                    const next = new Set(prev);
-                    if (e.target.checked) { if (next.size === 1 && next.has('UbuWeb')) { return new Set(); } next.add('Prelinger'); }
-                    else { if (next.size === 0) { next.add('UbuWeb'); } else { next.delete('Prelinger'); } }
-                    return next;
-                  }); setPage(1);
-                }}
-                style={{accentColor: 'var(--accent)'}}
-              />
-              Prelinger Archives
-            </label>
+                  Prelinger Archives
+                </label>
+
+                {/* VHS Instructionals */}
+                <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#999'}}>
+                  <input type="checkbox"
+                    checked={activeSources.size === 0 || activeSources.has('VHS Instructionals')}
+                    onChange={(e) => {
+                      setActiveSources(prev => {
+                        const next = new Set(prev);
+                        const allSources = ['UbuWeb', 'Prelinger', 'VHS Instructionals'];
+                        if (e.target.checked) {
+                          next.add('VHS Instructionals');
+                          if (allSources.every(s => next.has(s))) return new Set();
+                        } else {
+                          if (next.size === 0) { next.add('UbuWeb'); next.add('Prelinger'); }
+                          else { next.delete('VHS Instructionals'); }
+                        }
+                        return next;
+                      }); setPage(1);
+                    }}
+                    style={{accentColor: 'var(--accent)'}}
+                  />
+                  VHS Instructionals
+                </label>
+              </div>
+            </div>
           </div>
         </div>
 
