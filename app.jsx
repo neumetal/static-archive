@@ -501,14 +501,19 @@ function App() {
           </div>
         </div>
 
-        <div className="filter-group-header">Active Filters ({activeTags.size})</div>
+        <div className="filter-group-header">Active Filters ({activeTags.size + (activeArtist ? 1 : 0)})</div>
         <div className="tags-container" style={{marginBottom: '20px'}}>
+          {activeArtist && (
+             <div className="tag active" onClick={() => setActiveArtist(null)} style={{borderColor: 'rgba(255,255,255,0.3)', background: 'linear-gradient(45deg, var(--accent), #7b8af5)'}}>
+               👤 {activeArtist} ×
+             </div>
+          )}
           {Array.from(activeTags).map(tag => (
             <div key={tag} className="tag active" onClick={() => toggleTag(tag)}>
               {tag} ×
             </div>
           ))}
-          {activeTags.size === 0 && <div style={{fontSize:'12px', color:'#777'}}>No filters active. Click tags below to refine.</div>}
+          {activeTags.size === 0 && !activeArtist && <div style={{fontSize:'12px', color:'#777'}}>No filters active. Click tags below to refine.</div>}
         </div>
 
         <FilterSection title="Genres" tags={uniqueTags.genres} activeTags={activeTags} onToggle={toggleTag} defaultOpen={false} />
