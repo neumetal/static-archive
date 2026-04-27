@@ -18,8 +18,11 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeTags, setActiveTags] = useState(new Set());
-  const [activeSource, setActiveSource] = useState('All');
+  const [activeSources, setActiveSources] = useState(new Set()); // empty = all
+  const [activeArtist, setActiveArtist] = useState(null);
   const [activeVideo, setActiveVideo] = useState(null);
+  const [playIndex, setPlayIndex] = useState(null);
+  const playIndexRef = useRef(null);
   const [sortOption, setSortOption] = useState("random");
   const [page, setPage] = useState(1);
   const itemsPerPage = 30;
@@ -99,7 +102,8 @@ function App() {
 
   const clearFilters = () => {
     setActiveTags(new Set());
-    setActiveSource('All');
+    setActiveSources(new Set());
+    setActiveArtist(null);
     setSearch("");
     setSortOption("random");
     setShowFavoritesOnly(false);
@@ -108,8 +112,11 @@ function App() {
 
   const filteredData = useMemo(() => {
     let result = data;
-    if (activeSource !== 'All') {
-      result = result.filter(row => row.Source === activeSource);
+    if (activeSources.size > 0) {
+      result = result.filter(row => activeSources.has(row.Source));
+    }
+    if (activeArtist) {
+      result = result.filter(row => row.Artist === activeArtist);
     }
     if (showFavoritesOnly) {
       result = result.filter(row => favorites.has(`${row.Title}_${row.Artist}`));
@@ -119,19 +126,20 @@ function App() {
       result = result.filter(row => 
         (row.Title && row.Title.toLowerCase().includes(lower)) || 
         (row.Description && row.Description.toLowerCase().includes(lower)) ||
-        (row.Artist && row.Artist.toLowerCase().includes(lower))
+        (row.Artist && row.Artist.toLowerCase().includes(lower)) ||
+        (row.Genres && row.Genres.toLowerCase().includes(lower)) ||
+        (row.Moods && row.Moods.toLowerCase().includes(lower)) ||
+        (row.Themes && row.Themes.toLowerCase().includes(lower))
       );
     }
-    
     if (activeTags.size > 0) {
       result = result.filter(row => {
         const itemTags = [...row.Genres_list, ...row.Moods_list, ...row.Themes_list];
-        // Must contain ALL active tags (AND logic)
         return Array.from(activeTags).every(tag => itemTags.includes(tag));
       });
     }
     return result;
-  }, [data, search, activeTags, showFavoritesOnly, favorites, activeSource]);
+  }, [data, search, activeTags, showFavoritesOnly, favorites, activeSources, activeArtist]);
 
   const sortedData = useMemo(() => {
     let result = [...filteredData];
@@ -176,6 +184,12 @@ function App() {
     };
   }, [filteredData]);
 
+  const uniqueArtists = useMemo(() => {
+    const artists = new Set();
+    filteredData.forEach(row => { if (row.Artist) artists.add(row.Artist); });
+    return Array.from(artists).sort();
+  }, [filteredData]);
+
   const paginatedData = useMemo(() => {
     const start = (page - 1) * itemsPerPage;
     return sortedData.slice(start, start + itemsPerPage);
@@ -183,28 +197,42 @@ function App() {
 
   const totalPages = Math.ceil(sortedData.length / itemsPerPage);
 
-  const surpriseMe = useCallback((force = false) => {
-    if (typeof force !== 'boolean') force = false; // Protect against native React click event injections
+  const playNext = useCallback((force = false) => {
+    if (typeof force !== 'boolean') force = false;
     if (!force && skipCountdown > 0) return;
-    const validVideos = filteredData.filter(v => v.Link && typeof v.Link === 'string');
-    if (validVideos.length > 0) {
-      const random = validVideos[Math.floor(Math.random() * validVideos.length)];
-      setActiveVideo(random);
+    const validVideos = sortedData.filter(v => v.Link && typeof v.Link === 'string');
+    const currentIdx = playIndexRef.current;
+    if (currentIdx === null) return;
+    const nextIdx = currentIdx + 1;
+    if (nextIdx >= validVideos.length) {
+      // End of list — close player
+      setActiveVideo(null);
+      setPlayIndex(null);
+      playIndexRef.current = null;
     } else {
-      alert("No playable videos found in the current filter context.");
+      setPlayIndex(nextIdx);
+      playIndexRef.current = nextIdx;
+      setActiveVideo(validVideos[nextIdx]);
     }
-  }, [filteredData, skipCountdown]);
+  }, [sortedData, skipCountdown]);
+
+  const playAll = useCallback(() => {
+    const validVideos = sortedData.filter(v => v.Link && typeof v.Link === 'string');
+    if (validVideos.length === 0) { alert('No playable videos in current view.'); return; }
+    setPlayIndex(0);
+    playIndexRef.current = 0;
+    setActiveVideo(validVideos[0]);
+  }, [sortedData]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Invisible global shortcut bypasses native fullscreen restrictions
       if (activeVideo && (e.key === 'ArrowRight' || e.key.toLowerCase() === 'n')) {
-        surpriseMe();
+        playNext();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeVideo, surpriseMe]);
+  }, [activeVideo, playNext]);
 
   const ExpandableDescription = ({ text, defaultOpen = false, maxHeight = 'none' }) => {
     const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -283,8 +311,8 @@ function App() {
         />
 
         <div style={{display: 'flex', gap: '10px', marginBottom: '25px'}}>
-          <button className="random-btn" style={{marginTop: 0, flex: 2}} onClick={() => surpriseMe(true)}>
-            🎲 Surprise Me!
+          <button className="random-btn" style={{marginTop: 0, flex: 2}} onClick={playAll}>
+            ▶️ Play All
           </button>
           <button 
             className="random-btn" 
@@ -297,20 +325,55 @@ function App() {
 
         <div style={{marginBottom: '20px'}}>
           <div className="filter-group-header" style={{marginTop: 0}}>Archive Source</div>
-          <select 
-            value={activeSource} 
-            onChange={e => { setActiveSource(e.target.value); setPage(1); }}
-            style={{
-              width: '100%', padding: '8px 10px', fontSize: '13px',
-              background: 'rgba(255,255,255,0.03)', color: '#fff',
-              border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px',
-              outline: 'none', colorScheme: 'dark'
-            }}
-          >
-            <option value="All">All Archives</option>
-            <option value="UbuWeb">UbuWeb Archive</option>
-            <option value="Prelinger">Prelinger Collections</option>
-          </select>
+          <div style={{display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px'}}>
+            {/* UbuWeb */}
+            <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#ccc'}}>
+              <input type="checkbox" checked={activeSources.size === 0 || activeSources.has('UbuWeb')}
+                onChange={(e) => {
+                  setActiveSources(prev => {
+                    const next = new Set(prev);
+                    if (e.target.checked) { if (next.size === 1 && next.has('Prelinger')) { return new Set(); } next.add('UbuWeb'); }
+                    else { if (next.size === 0) { next.add('Prelinger'); } else { next.delete('UbuWeb'); } }
+                    return next;
+                  }); setPage(1);
+                }}
+                style={{accentColor: 'var(--accent)'}}
+              />
+              UbuWeb
+            </label>
+            {/* Internet Archive parent */}
+            <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#ccc'}}>
+              <input type="checkbox" 
+                checked={activeSources.size === 0 || activeSources.has('Prelinger')}
+                onChange={(e) => {
+                  setActiveSources(prev => {
+                    const next = new Set(prev);
+                    if (e.target.checked) { if (next.size === 1 && next.has('UbuWeb')) { return new Set(); } next.add('Prelinger'); }
+                    else { if (next.size === 0) { next.add('UbuWeb'); } else { next.delete('Prelinger'); } }
+                    return next;
+                  }); setPage(1);
+                }}
+                style={{accentColor: 'var(--accent)'}}
+              />
+              Internet Archive
+            </label>
+            {/* Children of Internet Archive */}
+            <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#999', paddingLeft: '20px'}}>
+              <input type="checkbox"
+                checked={activeSources.size === 0 || activeSources.has('Prelinger')}
+                onChange={(e) => {
+                  setActiveSources(prev => {
+                    const next = new Set(prev);
+                    if (e.target.checked) { if (next.size === 1 && next.has('UbuWeb')) { return new Set(); } next.add('Prelinger'); }
+                    else { if (next.size === 0) { next.add('UbuWeb'); } else { next.delete('Prelinger'); } }
+                    return next;
+                  }); setPage(1);
+                }}
+                style={{accentColor: 'var(--accent)'}}
+              />
+              Prelinger Archives
+            </label>
+          </div>
         </div>
 
         <div style={{marginBottom: '20px'}}>
@@ -358,6 +421,7 @@ function App() {
         <FilterSection title="Genres" tags={uniqueTags.genres} activeTags={activeTags} onToggle={toggleTag} defaultOpen={false} />
         <FilterSection title="Moods" tags={uniqueTags.moods} activeTags={activeTags} onToggle={toggleTag} defaultOpen={false} />
         <FilterSection title="Themes" tags={uniqueTags.themes} activeTags={activeTags} onToggle={toggleTag} defaultOpen={false} />
+        <FilterSection title="Artists" tags={uniqueArtists} activeTags={new Set(activeArtist ? [activeArtist] : [])} onToggle={(a) => { setActiveArtist(prev => prev === a ? null : a); setPage(1); }} defaultOpen={false} />
       </aside>
 
       <main className="main">
@@ -443,8 +507,8 @@ function App() {
                   {favorites.has(`${activeVideo.Title}_${activeVideo.Artist}`) ? '❤️' : '🤍'}
                 </button>
                 <button 
-                  onClick={surpriseMe} 
-                  title={skipCountdown > 0 ? `Please wait ${skipCountdown}s` : "Skip to random video"} 
+                  onClick={playNext} 
+                  title={skipCountdown > 0 ? `Please wait ${skipCountdown}s` : "Next video"} 
                   style={{
                     background:'rgba(0,0,0,0.5)', border:'1px solid rgba(255,255,255,0.2)', 
                     borderRadius:'6px', padding:'6px 10px', fontSize:'14px', 
@@ -453,7 +517,7 @@ function App() {
                     backdropFilter:'blur(4px)', color:'#fff'
                   }}
                 >
-                  🎲 {skipCountdown > 0 ? `Skip (${skipCountdown})` : `Skip`}
+                  ⏭️ {skipCountdown > 0 ? `Next (${skipCountdown})` : `Next`}
                 </button>
                 <button onClick={toggleFullScreen} title="Toggle Fullscreen Controls" style={{background:'rgba(0,0,0,0.5)', border:'1px solid rgba(255,255,255,0.2)', borderRadius:'6px', padding:'6px 10px', fontSize:'14px', cursor:'pointer', backdropFilter:'blur(4px)', color:'#fff', fontWeight: 'bold'}}>
                   ⛶ Fullscreen
@@ -467,7 +531,7 @@ function App() {
                   playsInline
                   name="media"
                   src={activeVideo.Link} 
-                  onEnded={surpriseMe}
+                  onEnded={playNext}
                   style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: '#000'}}
                 >
                   <source src={activeVideo.Link} type="video/quicktime" />
