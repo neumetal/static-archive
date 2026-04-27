@@ -345,7 +345,15 @@ function App() {
                     <span style={{color: '#666', fontSize:'13px'}}>No Video Found</span>
                   )}
                   {row.Link && typeof row.Link === 'string' && (
-                    <a href={row.Link} download className="btn-download" target="_blank" rel="noreferrer">📥 Download</a>
+                    <a 
+                      href={row.Link.includes('archive.org/embed/') ? row.Link.replace('/embed/', '/details/') : row.Link} 
+                      download={!row.Link.includes('archive.org/embed/')} 
+                      className="btn-download" 
+                      target="_blank" 
+                      rel="noreferrer"
+                    >
+                      {row.Link.includes('archive.org/embed/') ? '📥 View Options' : '📥 Download'}
+                    </a>
                   )}
                 </div>
               </div>
@@ -366,6 +374,7 @@ function App() {
                   autoPlay 
                   name="media"
                   src={activeVideo.Link} 
+                  onEnded={surpriseMe}
                   style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: '#000'}}
                 >
                   <source src={activeVideo.Link} type="video/quicktime" />
@@ -381,14 +390,19 @@ function App() {
               )}
             </div>
             <div className="modal-info">
-              <div style={{display: 'flex', alignItems: 'center', marginBottom: '5px'}}>
-                <h2 style={{margin: 0, fontSize: '22px', marginRight: '15px'}}>{activeVideo.Title}</h2>
-                <button 
-                  onClick={() => toggleFavorite(activeVideo)}
-                  style={{background:'transparent', border:'none', cursor:'pointer', fontSize:'24px', padding:0}}
-                  title={favorites.has(`${activeVideo.Title}_${activeVideo.Artist}`) ? "Remove from Favorites" : "Add to Favorites"}
-                >
-                  {favorites.has(`${activeVideo.Title}_${activeVideo.Artist}`) ? '❤️' : '🤍'}
+              <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px'}}>
+                <div style={{display: 'flex', alignItems: 'center'}}>
+                  <h2 style={{margin: 0, fontSize: '22px', marginRight: '15px'}}>{activeVideo.Title}</h2>
+                  <button 
+                    onClick={() => toggleFavorite(activeVideo)}
+                    style={{background:'transparent', border:'none', cursor:'pointer', fontSize:'24px', padding:0, marginRight: '15px'}}
+                    title={favorites.has(`${activeVideo.Title}_${activeVideo.Artist}`) ? "Remove from Favorites" : "Add to Favorites"}
+                  >
+                    {favorites.has(`${activeVideo.Title}_${activeVideo.Artist}`) ? '❤️' : '🤍'}
+                  </button>
+                </div>
+                <button onClick={surpriseMe} className="random-btn" style={{margin: 0, padding: '6px 12px', fontSize: '13px', width: 'auto'}}>
+                  🎲 Skip to Random
                 </button>
               </div>
               <p style={{margin: '0 0 10px 0', color: 'var(--accent)'}}>{activeVideo.Artist}</p>
