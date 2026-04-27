@@ -409,6 +409,7 @@ function App() {
               {activeVideo.Link.match(/\.(mp4|mov|m4v|webm|ogg|flv|avi|mkv)(\?.*)?$/i) ? (
                 <video 
                   controls 
+                  controlsList="nofullscreen"
                   autoPlay 
                   name="media"
                   src={activeVideo.Link} 
@@ -422,7 +423,6 @@ function App() {
               ) : (
                 <iframe 
                   src={activeVideo.Link} 
-                  allowFullScreen
                   title={activeVideo.Title}
                 ></iframe>
               )}
