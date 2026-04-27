@@ -709,10 +709,25 @@ function App() {
               )}
             </div>
             <div className="modal-info">
-              <div style={{display: 'flex', alignItems: 'center', marginBottom: '5px'}}>
+              <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px'}}>
                 <h2 style={{margin: 0, fontSize: '22px'}}>{activeVideo.Title}</h2>
+                {activeVideo.Link.includes('archive.org') && (
+                  <a 
+                    href={activeVideo.Link.replace('/embed/', '/details/')} 
+                    target="_blank" 
+                    rel="noreferrer"
+                    style={{fontSize: '12px', color: 'var(--accent)', textDecoration: 'none', fontWeight: 'bold'}}
+                  >
+                    ↗ Open on Archive.org
+                  </a>
+                )}
               </div>
               <p style={{margin: '0 0 10px 0', color: 'var(--accent)'}}>{activeVideo.Artist} • {activeVideo.Source}</p>
+              {activeVideo.Link.includes('archive.org') && (
+                <div style={{fontSize: '10px', color: '#555', marginBottom: '10px'}}>
+                  💡 Getting Error 221000? Try disabling your Ad-Blocker/VPN or checking the link above.
+                </div>
+              )}
               <ExpandableDescription text={activeVideo.Description} defaultOpen={true} maxHeight="25vh" />
 
               {/* Related Works */}
