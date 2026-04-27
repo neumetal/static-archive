@@ -38,6 +38,11 @@ function App() {
     try { return new Set(JSON.parse(localStorage.getItem('ubu_favorites') || '[]')); } 
     catch { return new Set(); }
   });
+  const [hiddenLinks, setHiddenLinks] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('atv_hidden') || '[]')); }
+    catch { return new Set(); }
+  });
+  const [curatorMode, setCuratorMode] = useState(false);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
   useEffect(() => {
@@ -56,6 +61,19 @@ function App() {
   useEffect(() => {
     localStorage.setItem('ubu_favorites', JSON.stringify(Array.from(favorites)));
   }, [favorites]);
+
+  useEffect(() => {
+    localStorage.setItem('atv_hidden', JSON.stringify(Array.from(hiddenLinks)));
+  }, [hiddenLinks]);
+
+  const hideVideo = (link) => {
+    setHiddenLinks(prev => new Set([...prev, link]));
+    setActiveVideo(null); // close modal if open
+  };
+
+  const unhideVideo = (link) => {
+    setHiddenLinks(prev => { const n = new Set(prev); n.delete(link); return n; });
+  };
 
   // Sync filter state back to URL so links are shareable
   useEffect(() => {
@@ -130,7 +148,7 @@ function App() {
   };
 
   const filteredData = useMemo(() => {
-    let result = data;
+    let result = data.filter(row => !hiddenLinks.has(row.Link));
     if (activeSources.size > 0) {
       result = result.filter(row => activeSources.has(row.Source));
     }
@@ -158,7 +176,7 @@ function App() {
       });
     }
     return result;
-  }, [data, search, activeTags, showFavoritesOnly, favorites, activeSources, activeArtist]);
+  }, [data, search, activeTags, showFavoritesOnly, favorites, activeSources, activeArtist, hiddenLinks]);
 
   const sortedData = useMemo(() => {
     let result = [...filteredData];
@@ -248,6 +266,10 @@ function App() {
       if (activeVideo && (e.key === 'ArrowRight' || e.key.toLowerCase() === 'n')) {
         playNext();
       }
+      // Secret curator mode toggle: Ctrl+Shift+H
+      if (e.ctrlKey && e.shiftKey && e.key === 'H') {
+        setCuratorMode(prev => !prev);
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -320,7 +342,10 @@ function App() {
   return (
     <div id="app">
       <aside className="sidebar">
-        <div className="brand">Archive TV.</div>
+        <div className="brand">
+          Archive TV.
+          {curatorMode && <span style={{fontSize:'10px', letterSpacing:'2px', color:'#f87', marginLeft:'8px', verticalAlign:'middle'}}>CURATOR</span>}
+        </div>
         
         <input 
           className="search-input"
@@ -468,6 +493,13 @@ function App() {
                   >
                     {isFav ? '❤️' : '🤍'}
                   </button>
+                  {curatorMode && (
+                    <button
+                      onClick={() => hideVideo(row.Link)}
+                      style={{background:'transparent', border:'none', cursor:'pointer', fontSize:'16px', padding:0, flexShrink:0, marginTop:'-3px', marginLeft:'4px'}}
+                      title="Hide this video"
+                    >🚫</button>
+                  )}
                 </div>
                 <p className="card-artist">{row.Artist || 'Unknown Artist'} {row.year_clean ? `(${row.year_clean})` : ''} • {row.Source}</p>
                 
@@ -525,6 +557,13 @@ function App() {
                 >
                   {favorites.has(`${activeVideo.Title}_${activeVideo.Artist}`) ? '❤️' : '🤍'}
                 </button>
+                {curatorMode && (
+                  <button
+                    onClick={() => hideVideo(activeVideo.Link)}
+                    style={{background:'rgba(200,0,0,0.5)', border:'1px solid rgba(255,100,100,0.4)', borderRadius:'6px', padding:'6px 10px', fontSize:'14px', cursor:'pointer', backdropFilter:'blur(4px)', color:'#fff'}}
+                    title="Hide this video permanently"
+                  >🚫 Hide</button>
+                )}
                 <button 
                   onClick={playNext} 
                   title={skipCountdown > 0 ? `Please wait ${skipCountdown}s` : "Next video"} 
