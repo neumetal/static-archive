@@ -281,6 +281,11 @@ function App() {
       if (activeVideo && (e.key === 'ArrowRight' || e.key.toLowerCase() === 'n')) {
         playNext();
       }
+      if (activeVideo && e.key === 'Escape') {
+        setActiveVideo(null);
+        setPlayIndex(null);
+        playIndexRef.current = null;
+      }
       // Secret curator mode toggle: Ctrl+Shift+H
       if (e.ctrlKey && e.shiftKey && e.key === 'H') {
         setCuratorMode(prev => !prev);
@@ -666,6 +671,20 @@ function App() {
               </div>
               <p style={{margin: '0 0 10px 0', color: 'var(--accent)'}}>{activeVideo.Artist} • {activeVideo.Source}</p>
               <ExpandableDescription text={activeVideo.Description} defaultOpen={true} maxHeight="25vh" />
+              <button
+                onClick={() => { setActiveVideo(null); setPlayIndex(null); playIndexRef.current = null; }}
+                style={{
+                  display: 'block', width: '100%', marginTop: '18px',
+                  padding: '12px', fontSize: '14px', fontWeight: '600',
+                  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+                  borderRadius: '8px', color: '#ccc', cursor: 'pointer',
+                  letterSpacing: '0.5px', transition: 'background 0.2s'
+                }}
+                onMouseOver={e => e.currentTarget.style.background='rgba(255,255,255,0.12)'}
+                onMouseOut={e => e.currentTarget.style.background='rgba(255,255,255,0.06)'}
+              >
+                ← Back to List
+              </button>
             </div>
           </div>
         </div>
