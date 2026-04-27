@@ -682,6 +682,22 @@ function App() {
                 <button onClick={toggleFullScreen} title="Toggle Fullscreen Controls" style={{background:'rgba(0,0,0,0.5)', border:'1px solid rgba(255,255,255,0.2)', borderRadius:'6px', padding:'6px 10px', fontSize:'14px', cursor:'pointer', backdropFilter:'blur(4px)', color:'#fff', fontWeight: 'bold'}}>
                   ⛶ Fullscreen
                 </button>
+                {activeVideo.Link && (
+                  <a 
+                    href={activeVideo.Link.includes('archive.org/embed/') ? activeVideo.Link.replace('/embed/', '/details/') : activeVideo.Link}
+                    download={!activeVideo.Link.includes('archive.org/embed/')}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      background:'rgba(0,0,0,0.5)', border:'1px solid rgba(255,255,255,0.2)', 
+                      borderRadius:'6px', padding:'6px 10px', fontSize:'14px', 
+                      cursor:'pointer', backdropFilter:'blur(4px)', color:'#fff', 
+                      fontWeight: 'bold', textDecoration: 'none', display: 'flex', alignItems: 'center'
+                    }}
+                  >
+                    {activeVideo.Link.includes('archive.org/embed/') ? '📥 View Options' : '📥 Download'}
+                  </a>
+                )}
               </div>
               {activeVideo.Link.match(/\.(mp4|mov|m4v|webm|ogg|mkv)(\?.*)?$/i) ? (
                 <video 
