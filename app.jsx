@@ -30,6 +30,7 @@ function App() {
   const [activeVideo, setActiveVideo] = useState(null);
   const [playIndex, setPlayIndex] = useState(null);
   const playIndexRef = useRef(null);
+  const pendingVideoLink = useRef(_p.get('video') || null);
   const [sortOption, setSortOption] = useState(_p.get('sort') || "random");
   const [page, setPage] = useState(1);
   const itemsPerPage = 30;
@@ -75,7 +76,7 @@ function App() {
     setHiddenLinks(prev => { const n = new Set(prev); n.delete(link); return n; });
   };
 
-  // Sync filter state back to URL so links are shareable
+  // Sync filter state + active video back to URL so links are always shareable
   useEffect(() => {
     const params = new URLSearchParams();
     if (search) params.set('search', search);
@@ -83,9 +84,10 @@ function App() {
     if (sortOption !== 'random') params.set('sort', sortOption);
     if (activeTags.size > 0) params.set('tags', Array.from(activeTags).join(','));
     if (activeSources.size > 0) params.set('sources', Array.from(activeSources).join(','));
+    if (activeVideo) params.set('video', activeVideo.Link);
     const qs = params.toString();
     window.history.replaceState({}, '', qs ? `?${qs}` : window.location.pathname);
-  }, [search, activeArtist, sortOption, activeTags, activeSources]);
+  }, [search, activeArtist, sortOption, activeTags, activeSources, activeVideo]);
 
   const toggleFavorite = (row) => {
     const uid = `${row.Title}_${row.Artist}`;
@@ -130,6 +132,13 @@ function App() {
         });
         setData(parsed);
         setLoading(false);
+
+        // Auto-open video from URL param on first load
+        if (pendingVideoLink.current) {
+          const target = parsed.find(r => r.Link === pendingVideoLink.current);
+          if (target) setActiveVideo(target);
+          pendingVideoLink.current = null;
+        }
       });
   }, []);
 
@@ -280,6 +289,19 @@ function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeVideo, playNext]);
+
+  // Resolve playIndex from sortedData whenever a video is open but index isn't set yet
+  // (happens when video is opened via URL param — sortedData isn't ready until after render)
+  useEffect(() => {
+    if (activeVideo && playIndexRef.current === null) {
+      const validVideos = sortedData.filter(v => v.Link && typeof v.Link === 'string');
+      const idx = validVideos.findIndex(v => v.Link === activeVideo.Link);
+      if (idx >= 0) {
+        setPlayIndex(idx);
+        playIndexRef.current = idx;
+      }
+    }
+  }, [sortedData, activeVideo]);
 
   const ExpandableDescription = ({ text, defaultOpen = false, maxHeight = 'none' }) => {
     const [isOpen, setIsOpen] = useState(defaultOpen);
