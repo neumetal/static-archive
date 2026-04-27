@@ -537,7 +537,14 @@ function App() {
                 
                 <div className="card-actions">
                   {row.Link && typeof row.Link === 'string' ? (
-                    <button className="btn-watch" onClick={() => setActiveVideo(row)}>
+                    <button className="btn-watch" onClick={() => {
+                      const validVideos = sortedData.filter(v => v.Link && typeof v.Link === 'string');
+                      const idx = validVideos.findIndex(v => v.Link === row.Link);
+                      const resolvedIdx = idx >= 0 ? idx : 0;
+                      setPlayIndex(resolvedIdx);
+                      playIndexRef.current = resolvedIdx;
+                      setActiveVideo(row);
+                    }}>
                       🎬 Watch Video
                     </button>
                   ) : (
