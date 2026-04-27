@@ -2,6 +2,7 @@ const { useState, useEffect, useMemo, useCallback, useRef } = React;
 
 function App() {
   const videoContainerRef = useRef(null);
+  const [skipCountdown, setSkipCountdown] = useState(0);
 
   const toggleFullScreen = () => {
     if (!document.fullscreenElement) {
@@ -27,6 +28,19 @@ function App() {
     catch { return new Set(); }
   });
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+
+  useEffect(() => {
+    if (activeVideo) setSkipCountdown(30);
+    else setSkipCountdown(0);
+  }, [activeVideo]);
+
+  useEffect(() => {
+    let interval;
+    if (skipCountdown > 0) {
+      interval = setInterval(() => setSkipCountdown(prev => prev - 1), 1000);
+    }
+    return () => clearInterval(interval);
+  }, [skipCountdown]);
 
   useEffect(() => {
     localStorage.setItem('ubu_favorites', JSON.stringify(Array.from(favorites)));
@@ -160,7 +174,9 @@ function App() {
 
   const totalPages = Math.ceil(sortedData.length / itemsPerPage);
 
-  const surpriseMe = useCallback(() => {
+  const surpriseMe = useCallback((force = false) => {
+    if (typeof force !== 'boolean') force = false; // Protect against native React click event injections
+    if (!force && skipCountdown > 0) return;
     const validVideos = filteredData.filter(v => v.Link && typeof v.Link === 'string');
     if (validVideos.length > 0) {
       const random = validVideos[Math.floor(Math.random() * validVideos.length)];
@@ -168,7 +184,7 @@ function App() {
     } else {
       alert("No playable videos found in the current filter context.");
     }
-  }, [filteredData]);
+  }, [filteredData, skipCountdown]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -258,7 +274,7 @@ function App() {
         />
 
         <div style={{display: 'flex', gap: '10px', marginBottom: '25px'}}>
-          <button className="random-btn" style={{marginTop: 0, flex: 2}} onClick={surpriseMe}>
+          <button className="random-btn" style={{marginTop: 0, flex: 2}} onClick={() => surpriseMe(true)}>
             🎲 Surprise Me!
           </button>
           <button 
@@ -399,8 +415,18 @@ function App() {
                 >
                   {favorites.has(`${activeVideo.Title}_${activeVideo.Artist}`) ? '❤️' : '🤍'}
                 </button>
-                <button onClick={surpriseMe} title="Skip to random video" style={{background:'rgba(0,0,0,0.5)', border:'1px solid rgba(255,255,255,0.2)', borderRadius:'6px', padding:'6px 10px', fontSize:'14px', cursor:'pointer', backdropFilter:'blur(4px)', color:'#fff'}}>
-                  🎲 Skip
+                <button 
+                  onClick={surpriseMe} 
+                  title={skipCountdown > 0 ? `Please wait ${skipCountdown}s` : "Skip to random video"} 
+                  style={{
+                    background:'rgba(0,0,0,0.5)', border:'1px solid rgba(255,255,255,0.2)', 
+                    borderRadius:'6px', padding:'6px 10px', fontSize:'14px', 
+                    cursor: skipCountdown > 0 ? 'not-allowed' : 'pointer', 
+                    opacity: skipCountdown > 0 ? 0.6 : 1,
+                    backdropFilter:'blur(4px)', color:'#fff'
+                  }}
+                >
+                  🎲 {skipCountdown > 0 ? `Skip (${skipCountdown})` : `Skip`}
                 </button>
                 <button onClick={toggleFullScreen} title="Toggle Fullscreen Controls" style={{background:'rgba(0,0,0,0.5)', border:'1px solid rgba(255,255,255,0.2)', borderRadius:'6px', padding:'6px 10px', fontSize:'14px', cursor:'pointer', backdropFilter:'blur(4px)', color:'#fff', fontWeight: 'bold'}}>
                   ⛶ Fullscreen
@@ -428,19 +454,14 @@ function App() {
               )}
             </div>
             <div className="modal-info">
-              <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px'}}>
-                <div style={{display: 'flex', alignItems: 'center'}}>
-                  <h2 style={{margin: 0, fontSize: '22px', marginRight: '15px'}}>{activeVideo.Title}</h2>
-                  <button 
-                    onClick={() => toggleFavorite(activeVideo)}
-                    style={{background:'transparent', border:'none', cursor:'pointer', fontSize:'24px', padding:0, marginRight: '15px'}}
-                    title={favorites.has(`${activeVideo.Title}_${activeVideo.Artist}`) ? "Remove from Favorites" : "Add to Favorites"}
-                  >
-                    {favorites.has(`${activeVideo.Title}_${activeVideo.Artist}`) ? '❤️' : '🤍'}
-                  </button>
-                </div>
-                <button onClick={surpriseMe} className="random-btn" style={{margin: 0, padding: '6px 12px', fontSize: '13px', width: 'auto'}}>
-                  🎲 Skip to Random
+              <div style={{display: 'flex', alignItems: 'center', marginBottom: '5px'}}>
+                <h2 style={{margin: 0, fontSize: '22px', marginRight: '15px'}}>{activeVideo.Title}</h2>
+                <button 
+                  onClick={() => toggleFavorite(activeVideo)}
+                  style={{background:'transparent', border:'none', cursor:'pointer', fontSize:'24px', padding:0}}
+                  title={favorites.has(`${activeVideo.Title}_${activeVideo.Artist}`) ? "Remove from Favorites" : "Add to Favorites"}
+                >
+                  {favorites.has(`${activeVideo.Title}_${activeVideo.Artist}`) ? '❤️' : '🤍'}
                 </button>
               </div>
               <p style={{margin: '0 0 10px 0', color: 'var(--accent)'}}>{activeVideo.Artist}</p>
