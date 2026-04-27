@@ -475,7 +475,7 @@ function App() {
                 </video>
               ) : (
                 <iframe 
-                  src={`${activeVideo.Link}${activeVideo.Link.includes('?') ? '&' : '?'}autoplay=1${activeVideo.Source === 'Prelinger' ? '&start=5' : ''}`}
+                  src={`${activeVideo.Link}${activeVideo.Link.includes('?') ? '&' : '?'}autoplay=1`}
                   allow="autoplay"
                   title={activeVideo.Title}
                 ></iframe>
