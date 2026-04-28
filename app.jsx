@@ -28,6 +28,7 @@ function App() {
   });
   const [activeArtist, setActiveArtist] = useState(_p.get('artist') || null);
   const [activeVideo, setActiveVideo] = useState(null);
+  const [videoError, setVideoError] = useState(false);
   const [playIndex, setPlayIndex] = useState(null);
   const playIndexRef = useRef(null);
   const pendingVideoLink = useRef(_p.get('video') || null);
@@ -89,6 +90,10 @@ function App() {
     const qs = params.toString();
     window.history.replaceState({}, '', qs ? `?${qs}` : window.location.pathname);
   }, [search, activeArtist, sortOption, activeTags, activeSources, activeVideo]);
+
+  useEffect(() => {
+    setVideoError(false);
+  }, [activeVideo]);
 
   const toggleFavorite = (row) => {
     const uid = `${row.Title}_${row.Artist}`;
@@ -760,20 +765,64 @@ function App() {
                 </button>
               </div>
               {activeVideo.Link.match(/\.(mp4|mov|m4v|webm|ogg|mkv|mpg|mpeg|avi)(\?.*)?$/i) ? (
-                <video 
-                  controls 
-                  controlsList="nofullscreen"
-                  autoPlay
-                  playsInline
-                  name="media"
-                  src={activeVideo.Link} 
-                  onEnded={advanceVideo}
-                  style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: '#000'}}
-                >
-                  <source src={activeVideo.Link} type="video/quicktime" />
-                  <source src={activeVideo.Link} type="video/mp4" />
-                  Your browser does not support the video tag.
-                </video>
+                <div style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%'}}>
+                  <video 
+                    controls 
+                    controlsList="nofullscreen"
+                    autoPlay
+                    playsInline
+                    name="media"
+                    src={activeVideo.Link} 
+                    onEnded={advanceVideo}
+                    onError={() => setVideoError(true)}
+                    style={{width: '100%', height: '100%', background: '#000'}}
+                  >
+                    <source src={activeVideo.Link} type="video/mp4" />
+                    <source src={activeVideo.Link} type="video/mpeg" />
+                    <source src={activeVideo.Link} type="video/x-msvideo" />
+                    <source src={activeVideo.Link} type="video/quicktime" />
+                    Your browser does not support the video tag.
+                  </video>
+                  {videoError && (
+                    <div style={{
+                      position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                      background: 'rgba(0,0,0,0.9)', display: 'flex', flexDirection: 'column',
+                      alignItems: 'center', justifyContent: 'center', color: '#fff', padding: '40px',
+                      textAlign: 'center', zIndex: 10
+                    }}>
+                      <div style={{fontSize: '48px', marginBottom: '20px'}}>⚠️</div>
+                      <h3 style={{margin: '0 0 10px 0'}}>Playback Error</h3>
+                      <p style={{fontSize: '14px', color: '#aaa', maxWidth: '400px', margin: '0 0 20px 0'}}>
+                        This video uses a legacy format ({activeVideo.Link.split('.').pop().split('?')[0].toUpperCase()}) 
+                        that Chrome cannot play natively.
+                      </p>
+                      <div style={{display: 'flex', gap: '10px'}}>
+                        <a 
+                          href={activeVideo.Link} 
+                          download 
+                          style={{
+                            background: 'var(--accent)', color: '#fff', textDecoration: 'none',
+                            padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold'
+                          }}
+                        >
+                          Download to Play
+                        </a>
+                        <button 
+                          onClick={() => setVideoError(false)}
+                          style={{
+                            background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none',
+                            padding: '10px 20px', borderRadius: '8px', cursor: 'pointer'
+                          }}
+                        >
+                          Try Again
+                        </button>
+                      </div>
+                      <p style={{fontSize: '12px', color: '#666', marginTop: '20px'}}>
+                        Tip: These files often work better in Safari or with a dedicated player like VLC.
+                      </p>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <iframe 
                   key={activeVideo.Link}
